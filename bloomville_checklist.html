@@ -327,17 +327,31 @@ var state = {};
 
 function loadState(){
   try {
-    // clear old keys
-    Object.keys(localStorage).forEach(function(k){
-      if(k.indexOf('bv2_') === 0 && k !== todayKey()) localStorage.removeItem(k);
-    });
-    var s = localStorage.getItem(todayKey());
+    var key = todayKey();
+    // Clear old keys more safely using for...in
+    for(var k in localStorage){
+      if(localStorage.hasOwnProperty(k) && k.indexOf('bv2_') === 0 && k !== key){
+        try { 
+          localStorage.removeItem(k); 
+        } catch(e){ 
+          console.warn('Failed to remove old state key:', k);
+        }
+      }
+    }
+    var s = localStorage.getItem(key);
     state = s ? JSON.parse(s) : {};
-  } catch(e){ state = {}; }
+  } catch(e){ 
+    console.error('loadState error:', e);
+    state = {}; 
+  }
 }
 
 function saveState(){
-  try { localStorage.setItem(todayKey(), JSON.stringify(state)); } catch(e){}
+  try { 
+    localStorage.setItem(todayKey(), JSON.stringify(state)); 
+  } catch(e){ 
+    console.error('saveState error - localStorage may be full or disabled:', e);
+  }
 }
 
 /* ── ATTENDANCE ── */
