@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloomville – Supervisor Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter','Noto Sans Devanagari',sans-serif; background:#F0F2F5; color:#1C1C2E; min-height:100vh; }
+
+  /* HEADER */
+  .header {
+    background:#1C2B4A; color:#fff;
+    padding:16px 24px 12px;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  }
+  .header-left h1 { font-size:1.05rem; font-weight:700; }
+  .header-left p  { font-size:0.72rem; color:#9EB3D4; margin-top:3px; }
+  .header-right   { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+  #liveClock { font-size:1rem; font-weight:600; color:#E8F0FE; }
+  #liveDate  { font-size:0.72rem; color:#9EB3D4; }
+
+  /* LANG BAR */
+  .lang-bar {
+    background:#162340; padding:8px 24px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .lang-label { font-size:0.72rem; color:#9EB3D4; }
+  .lang-btn {
+    padding:4px 14px; border-radius:999px;
+    border:1.5px solid #2E4470; background:transparent;
+    color:#9EB3D4; font-size:0.78rem; font-weight:600;
+    cursor:pointer; font-family:'Inter','Noto Sans Devanagari',sans-serif;
+    transition:all 0.2s;
+  }
+  .lang-btn.active { background:#fff; color:#1C2B4A; border-color:#fff; }
+  .lang-btn:hover:not(.active) { border-color:#9EB3D4; color:#fff; }
+
+  /* TABS */
+  .tabs {
+    display:flex; background:#fff;
+    border-bottom:2px solid #E4E8EF;
+    padding:0 24px; gap:4px;
+    position:sticky; top:0; z-index:50;
+    box-shadow:0 1px 4px rgba(0,0,0,0.06);
+  }
+  .tab-btn {
+    padding:13px 22px; font-family:'Inter','Noto Sans Devanagari',sans-serif;
+    font-size:0.85rem; font-weight:600;
+    border:none; background:transparent; cursor:pointer;
+    color:#888; border-bottom:3px solid transparent; margin-bottom:-2px;
+    transition:all 0.2s;
+  }
+  .tab-btn.active { color:#1C2B4A; border-bottom-color:#1C2B4A; }
+  .tab-btn:hover:not(.active) { color:#444; }
+
+  /* CONTAINER */
+  .container { max-width:820px; margin:0 auto; padding:24px 16px 80px; }
+
+  /* ATTENDANCE CARD */
+  .att-card {
+    background:#fff; border-radius:12px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.08);
+    padding:18px 20px; margin-bottom:22px;
+    border-left:5px solid #1C2B4A;
+  }
+  .att-card.sec { border-left-color:#C62828; }
+  .att-card h3 {
+    font-size:0.82rem; font-weight:700; color:#1C2B4A;
+    text-transform:uppercase; letter-spacing:1px; margin-bottom:14px;
+    font-family:'Inter','Noto Sans Devanagari',sans-serif;
+  }
+  .att-card.sec h3 { color:#C62828; }
+  .att-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; flex-wrap:wrap; }
+  .att-row:last-child { margin-bottom:0; }
+  .att-label { font-size:0.83rem; font-weight:500; color:#444; min-width:160px; font-family:'Inter','Noto Sans Devanagari',sans-serif; }
+  .att-ctrl { display:flex; align-items:center; border:1.5px solid #DDE2EA; border-radius:8px; overflow:hidden; background:#F7F9FC; }
+  .att-btn {
+    width:36px; height:36px; border:none; background:transparent;
+    font-size:1.1rem; cursor:pointer; color:#1C2B4A; font-weight:700;
+    transition:background 0.15s; display:flex; align-items:center; justify-content:center;
+  }
+  .att-btn:hover { background:#E8ECF5; }
+  .att-num {
+    min-width:44px; text-align:center; font-size:1rem; font-weight:700;
+    color:#1C2B4A; border-left:1.5px solid #DDE2EA; border-right:1.5px solid #DDE2EA;
+    line-height:36px; background:#fff; padding:0 4px;
+  }
+  .badge { font-size:0.75rem; font-weight:600; padding:4px 12px; border-radius:999px; margin-left:4px; font-family:'Inter','Noto Sans Devanagari',sans-serif; }
+  .badge.present { background:#E8F5E9; color:#2E7D32; }
+  .badge.absent  { background:#FDE8E8; color:#C62828; }
+
+  /* PROGRESS */
+  .progress-wrap {
+    background:#fff; border-radius:10px; padding:14px 18px;
+    margin-bottom:20px; box-shadow:0 1px 3px rgba(0,0,0,0.07);
+    display:flex; align-items:center; gap:14px;
+  }
+  .progress-wrap label { font-size:0.78rem; font-weight:600; color:#555; white-space:nowrap; font-family:'Inter','Noto Sans Devanagari',sans-serif; }
+  .pbar-outer { flex:1; height:8px; background:#E8ECF2; border-radius:999px; overflow:hidden; }
+  .pbar-inner { height:100%; border-radius:999px; transition:width 0.4s ease; background:#2E7D32; }
+  .pbar-count { font-size:0.78rem; font-weight:600; color:#333; white-space:nowrap; }
+
+  /* FREQ GROUP */
+  .freq-group { margin-bottom:20px; }
+  .freq-heading {
+    font-size:0.68rem; font-weight:700; letter-spacing:1.2px;
+    text-transform:uppercase; color:#fff;
+    padding:6px 14px; border-radius:6px; margin-bottom:8px; display:inline-block;
+    font-family:'Inter','Noto Sans Devanagari',sans-serif;
+  }
+  .fh-daily{background:#1565C0;} .fh-alternatedays{background:#00695C;}
+  .fh-weekly{background:#E65100;} .fh-biweekly{background:#6A1B9A;}
+  .fh-monthly{background:#C62828;} .fh-every2days{background:#4E342E;}
+
+  /* TASK CARD */
+  .task-card {
+    background:#fff; border-radius:10px; margin-bottom:8px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+    display:flex; align-items:center; gap:14px; padding:13px 16px;
+    cursor:pointer; border-left:4px solid transparent;
+    transition:background 0.15s, border-color 0.15s; user-select:none;
+  }
+  .task-card:hover { background:#F7F9FC; }
+  .task-card.done  { background:#F1FBF4; border-left-color:#3CB371; }
+  .chk-box {
+    width:22px; height:22px; border-radius:6px; border:2px solid #CCC;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; font-size:0.75rem; color:#fff;
+    transition:all 0.15s; background:#fff;
+  }
+  .task-card.done .chk-box { background:#3CB371; border-color:#3CB371; }
+  .task-info { flex:1; }
+  .task-name { font-size:0.88rem; font-weight:500; color:#1C1C2E; font-family:'Inter','Noto Sans Devanagari',sans-serif; }
+  .task-card.done .task-name { color:#AAA; text-decoration:line-through; }
+  .task-note { font-size:0.72rem; color:#999; margin-top:2px; font-family:'Inter','Noto Sans Devanagari',sans-serif; }
+  .done-time { font-size:0.7rem; color:#3CB371; font-weight:600; white-space:nowrap; }
+
+  .section { display:none; }
+  .section.active { display:block; }
+
+  /* BOTTOM BAR */
+  .bottom-bar {
+    max-width:820px; margin:0 auto; padding:0 16px 40px;
+    display:flex; gap:10px; flex-wrap:wrap;
+  }
+  .btn {
+    padding:10px 18px; border-radius:8px;
+    font-family:'Inter','Noto Sans Devanagari',sans-serif;
+    font-size:0.82rem; font-weight:600;
+    cursor:pointer; border:none; transition:all 0.15s;
+    display:flex; align-items:center; gap:6px;
+  }
+  .btn-print  { background:#1C2B4A; color:#fff; }
+  .btn-print:hover  { background:#263D65; }
+  .btn-excel  { background:#1D6F42; color:#fff; }
+  .btn-excel:hover  { background:#155232; }
+  .btn-drive  { background:#fff; color:#1C2B4A; border:1.5px solid #DDE2EA; }
+  .btn-drive:hover  { border-color:#1C2B4A; }
+  .btn-reset  { background:#fff; color:#888; border:1.5px solid #DDD; }
+  .btn-reset:hover  { border-color:#999; color:#444; }
+
+  /* GDRIVE STATUS */
+  #driveStatus {
+    max-width:820px; margin:0 auto; padding:0 16px 12px;
+    font-size:0.78rem; color:#555; display:none;
+    align-items:center; gap:8px;
+  }
+  #driveStatus.show { display:flex; }
+  .ds-ok  { color:#2E7D32; font-weight:600; }
+  .ds-err { color:#C62828; font-weight:600; }
+  .ds-loading { color:#1565C0; font-weight:600; }
+
+  /* PRINT */
+  .print-header        { display:none; }
+  .print-section-title { display:none; }
+  @media print {
+    body { background:#fff; }
+    .tabs,.bottom-bar,.lang-bar,#driveStatus { display:none !important; }
+    .section { display:block !important; }
+    .container { padding:10px; max-width:100%; }
+    .task-card { box-shadow:none; border:1px solid #DDD; page-break-inside:avoid; }
+    .progress-wrap,.att-card { box-shadow:none; border:1px solid #CCC; }
+    .att-btn { display:none; }
+    .att-ctrl { border:none; background:transparent; }
+    .att-num  { border:1px solid #CCC; border-radius:4px; }
+    .print-header        { display:block !important; text-align:center; margin-bottom:18px; padding-bottom:12px; border-bottom:2px solid #1C2B4A; }
+    .print-section-title { display:block !important; }
+  }
+  @media (max-width:500px) {
+    .tab-btn { padding:11px 14px; font-size:0.78rem; }
+    .task-card { padding:11px 12px; }
+    .att-label { min-width:120px; font-size:0.78rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>🏘️ Bloomville Co-Op. Housing Society</h1>
+    <p id="hdr-sub">Supervisor Daily Checklist | Term 2026 – 2031</p>
+  </div>
+  <div class="header-right">
+    <div id="liveClock">--:--:--</div>
+    <div id="liveDate">--</div>
+  </div>
+</div>
+
+<!-- LANGUAGE BAR -->
+<div class="lang-bar">
+  <span class="lang-label" id="lang-label">Language / भाषा :</span>
+  <button class="lang-btn active" onclick="setLang('en',this)">English</button>
+  <button class="lang-btn"        onclick="setLang('mr',this)">मराठी</button>
+  <button class="lang-btn"        onclick="setLang('hi',this)">हिंदी</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" id="tab-hk"  onclick="switchTab('hk',this)">🧹 <span data-i="tab_hk">Housekeeping</span></button>
+  <button class="tab-btn"        id="tab-sec" onclick="switchTab('sec',this)">🛡️ <span data-i="tab_sec">Security</span></button>
+</div>
+
+<!-- MAIN -->
+<div class="container">
+
+  <!-- PRINT HEADER -->
+  <div class="print-header" id="printHeader">
+    <h2 style="font-size:1.2rem;color:#1C2B4A;">Bloomville Co-Op. Housing Society</h2>
+    <p style="font-size:0.85rem;color:#555;margin-top:4px;"><span data-i="printed_on">Printed on</span>: <span id="printDateTime"></span></p>
+  </div>
+
+  <!-- HOUSEKEEPING -->
+  <div class="section active" id="section-hk">
+    <div class="print-section-title" style="font-size:1rem;font-weight:700;margin-bottom:12px;color:#1C2B4A;">🧹 <span data-i="tab_hk">Housekeeping</span></div>
+
+    <div class="att-card">
+      <h3>👷 <span data-i="hk_att_title">Housekeeping Staff Attendance</span></h3>
+      <div class="att-row">
+        <span class="att-label" data-i="total_staff">Total Staff Strength</span>
+        <div class="att-ctrl">
+          <button class="att-btn" onclick="changeAtt('hk','total',-1)">−</button>
+          <div class="att-num" id="hk-total">0</div>
+          <button class="att-btn" onclick="changeAtt('hk','total',1)">+</button>
+        </div>
+        <span style="font-size:0.75rem;color:#888;margin-left:4px;" data-i="workers">workers</span>
+      </div>
+      <div class="att-row">
+        <span class="att-label" data-i="present_today">Present Today</span>
+        <div class="att-ctrl">
+          <button class="att-btn" onclick="changeAtt('hk','present',-1)">−</button>
+          <div class="att-num" id="hk-present">0</div>
+          <button class="att-btn" onclick="changeAtt('hk','present',1)">+</button>
+        </div>
+        <span class="badge present" id="hk-badge-present">0 Present</span>
+        <span class="badge absent"  id="hk-badge-absent">0 Absent</span>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <label data-i="task_progress">Task Progress</label>
+      <div class="pbar-outer"><div class="pbar-inner" id="pbar-hk" style="width:0%"></div></div>
+      <span class="pbar-count" id="pcount-hk">0 / 0</span>
+    </div>
+    <div id="tasks-hk"></div>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="section" id="section-sec">
+    <div class="print-section-title" style="font-size:1rem;font-weight:700;margin-bottom:12px;color:#1C2B4A;">🛡️ <span data-i="tab_sec">Security</span></div>
+
+    <div class="att-card sec">
+      <h3>💂 <span data-i="sec_att_title">Security Guard Attendance</span></h3>
+      <div class="att-row">
+        <span class="att-label" data-i="total_guards">Total Guards Deployed</span>
+        <div class="att-ctrl">
+          <button class="att-btn" onclick="changeAtt('sec','total',-1)">−</button>
+          <div class="att-num" id="sec-total">0</div>
+          <button class="att-btn" onclick="changeAtt('sec','total',1)">+</button>
+        </div>
+        <span style="font-size:0.75rem;color:#888;margin-left:4px;" data-i="guards">guards</span>
+      </div>
+      <div class="att-row">
+        <span class="att-label" data-i="on_duty">On Duty Today</span>
+        <div class="att-ctrl">
+          <button class="att-btn" onclick="changeAtt('sec','present',-1)">−</button>
+          <div class="att-num" id="sec-present">0</div>
+          <button class="att-btn" onclick="changeAtt('sec','present',1)">+</button>
+        </div>
+        <span class="badge present" id="sec-badge-present">0 On Duty</span>
+        <span class="badge absent"  id="sec-badge-absent">0 Absent</span>
+      </div>
+      <div style="border-top:1px solid #F0F0F0;margin:12px 0 10px;"></div>
+      <div class="att-row">
+        <span class="att-label">🚛 <span data-i="tankers_supplied">Tankers Supplied</span><br>
+          <span id="tanker-date-label" style="font-size:0.7rem;color:#aaa;font-weight:400;"></span>
+        </span>
+        <div class="att-ctrl">
+          <button class="att-btn" onclick="changeAtt('sec','tanker',-1)">−</button>
+          <div class="att-num" id="sec-tanker">0</div>
+          <button class="att-btn" onclick="changeAtt('sec','tanker',1)">+</button>
+        </div>
+        <span style="font-size:0.75rem;color:#888;margin-left:4px;" data-i="tankers_yesterday">tankers (yesterday)</span>
+      </div>
+    </div>
+
+    <div class="progress-wrap">
+      <label data-i="task_progress">Task Progress</label>
+      <div class="pbar-outer"><div class="pbar-inner" id="pbar-sec" style="width:0%"></div></div>
+      <span class="pbar-count" id="pcount-sec">0 / 0</span>
+    </div>
+    <div id="tasks-sec"></div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- DRIVE STATUS -->
+<div id="driveStatus"></div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <button class="btn btn-print" onclick="printPage()">🖨️ <span data-i="btn_print">Print</span></button>
+  <button class="btn btn-excel" onclick="exportExcel()">📊 <span data-i="btn_excel">Export Excel</span></button>
+  <button class="btn btn-drive" onclick="saveToDrive()">☁️ <span data-i="btn_drive">Save to Google Drive</span></button>
+  <button class="btn btn-reset" onclick="resetAll()">↺ <span data-i="btn_reset">Reset All</span></button>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   TRANSLATIONS
+═══════════════════════════════════════════════ */
+var LANGS = {
+  en: {
+    tab_hk:'Housekeeping', tab_sec:'Security',
+    hk_att_title:'Housekeeping Staff Attendance',
+    sec_att_title:'Security Guard Attendance',
+    total_staff:'Total Staff Strength', workers:'workers',
+    present_today:'Present Today',
+    total_guards:'Total Guards Deployed', guards:'guards',
+    on_duty:'On Duty Today',
+    tankers_supplied:'Tankers Supplied', tankers_yesterday:'tankers (yesterday)',
+    task_progress:'Task Progress',
+    btn_print:'Print', btn_excel:'Export Excel',
+    btn_drive:'Save to Google Drive', btn_reset:'Reset All',
+    hdr_sub:'Supervisor Daily Checklist | Term 2026 – 2031',
+    printed_on:'Printed on',
+    present_badge:'Present', absent_badge:'Absent', duty_badge:'On Duty',
+    freq_daily:'Daily', freq_alternatedays:'Alternate Days',
+    freq_weekly:'Weekly', freq_biweekly:'Bi-weekly',
+    freq_monthly:'Monthly', freq_every2days:'Every 2 Days',
+    confirm_reset:'Reset all tasks and attendance for today?',
+    drive_signing:'Signing in to Google…',
+    drive_uploading:'Uploading to Google Drive…',
+    drive_ok:'✅ Saved to Google Drive!',
+    drive_err:'❌ Upload failed. Please try again.',
+  },
+  mr: {
+    tab_hk:'गृहनिर्माण', tab_sec:'सुरक्षा',
+    hk_att_title:'सफाई कर्मचारी हजेरी',
+    sec_att_title:'सुरक्षा रक्षक हजेरी',
+    total_staff:'एकूण कर्मचारी', workers:'कर्मचारी',
+    present_today:'आज उपस्थित',
+    total_guards:'एकूण तैनात रक्षक', guards:'रक्षक',
+    on_duty:'आज कर्तव्यावर',
+    tankers_supplied:'पुरवलेले टँकर', tankers_yesterday:'टँकर (काल)',
+    task_progress:'कार्य प्रगती',
+    btn_print:'प्रिंट', btn_excel:'एक्सेल डाउनलोड',
+    btn_drive:'गूगल ड्राइव्हवर सेव्ह करा', btn_reset:'सर्व रीसेट',
+    hdr_sub:'पर्यवेक्षक दैनंदिन यादी | कालावधी २०२६ – २०३१',
+    printed_on:'मुद्रित केल्याची तारीख',
+    present_badge:'उपस्थित', absent_badge:'अनुपस्थित', duty_badge:'कर्तव्यावर',
+    freq_daily:'दररोज', freq_alternatedays:'आलटून पालटून',
+    freq_weekly:'साप्ताहिक', freq_biweekly:'पंधरवड्यातून एकदा',
+    freq_monthly:'मासिक', freq_every2days:'दर २ दिवसांनी',
+    confirm_reset:'आजच्या सर्व नोंदी रीसेट करायच्या का?',
+    drive_signing:'Google मध्ये साइन इन होत आहे…',
+    drive_uploading:'Google Drive वर अपलोड होत आहे…',
+    drive_ok:'✅ Google Drive वर सेव्ह झाले!',
+    drive_err:'❌ अपलोड अयशस्वी. पुन्हा प्रयत्न करा.',
+  },
+  hi: {
+    tab_hk:'हाउसकीपिंग', tab_sec:'सुरक्षा',
+    hk_att_title:'सफाई कर्मचारी उपस्थिति',
+    sec_att_title:'सुरक्षा गार्ड उपस्थिति',
+    total_staff:'कुल कर्मचारी', workers:'कर्मचारी',
+    present_today:'आज उपस्थित',
+    total_guards:'तैनात गार्ड', guards:'गार्ड',
+    on_duty:'आज ड्यूटी पर',
+    tankers_supplied:'आपूर्ति किए टैंकर', tankers_yesterday:'टैंकर (कल)',
+    task_progress:'कार्य प्रगति',
+    btn_print:'प्रिंट', btn_excel:'एक्सेल डाउनलोड',
+    btn_drive:'गूगल ड्राइव में सेव करें', btn_reset:'सभी रीसेट करें',
+    hdr_sub:'पर्यवेक्षक दैनिक चेकलिस्ट | कार्यकाल २०२६ – २०३१',
+    printed_on:'मुद्रित तिथि',
+    present_badge:'उपस्थित', absent_badge:'अनुपस्थित', duty_badge:'ड्यूटी पर',
+    freq_daily:'प्रतिदिन', freq_alternatedays:'एक दिन छोड़कर',
+    freq_weekly:'साप्ताहिक', freq_biweekly:'पखवाड़े में एक बार',
+    freq_monthly:'मासिक', freq_every2days:'हर २ दिन में',
+    confirm_reset:'आज की सभी जानकारी रीसेट करें?',
+    drive_signing:'Google में साइन इन हो रहे हैं…',
+    drive_uploading:'Google Drive पर अपलोड हो रहा है…',
+    drive_ok:'✅ Google Drive में सेव हो गया!',
+    drive_err:'❌ अपलोड विफल। फिर से प्रयास करें।',
+  }
+};
+
+var currentLang = 'en';
+
+function t(key){ return (LANGS[currentLang]||LANGS.en)[key] || key; }
+
+function setLang(lang, btn){
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  applyTranslations();
+  renderSection('hk');
+  renderSection('sec');
+  refreshAtt('hk');
+  refreshAtt('sec');
+}
+
+function applyTranslations(){
+  // data-i elements
+  document.querySelectorAll('[data-i]').forEach(function(el){
+    var key = el.getAttribute('data-i');
+    if(LANGS[currentLang][key]) el.textContent = LANGS[currentLang][key];
+  });
+  document.getElementById('hdr-sub').textContent = t('hdr_sub');
+}
+
+/* ═══════════════════════════════════════════════
+   DATA (English + Translations)
+═══════════════════════════════════════════════ */
+var DATA = {
+  hk: [
+    { fkey:"daily",         en:"Garbage collection (Grampanchayat)", mr:"कचरा संकलन (ग्रामपंचायत)",       hi:"कचरा संग्रह (ग्रामपंचायत)",      note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Club house cleaning",                mr:"क्लबहाऊस साफसफाई",               hi:"क्लब हाउस सफाई",                 note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Society surroundings road",          mr:"सोसायटी परिसर रस्ता",             hi:"सोसायटी परिसर सड़क",              note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Security gate",                      mr:"सुरक्षा गेट",                     hi:"सुरक्षा गेट",                     note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Garden water",                       mr:"बागेला पाणी",                     hi:"बगीचे में पानी",                  note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Lift lobby",                         mr:"लिफ्ट लॉबी",                      hi:"लिफ्ट लॉबी",                      note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Regular staircase",                  mr:"नियमित जिना",                     hi:"नियमित सीढ़ी",                    note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"daily",         en:"Garden sitting area",                mr:"बाग बसण्याची जागा",               hi:"बगीचा बैठक क्षेत्र",              note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"alternatedays", en:"P1/P2 parking",                      mr:"P1/P2 पार्किंग",                  hi:"P1/P2 पार्किंग",                  note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"alternatedays", en:"Refuge area",                        mr:"निर्वासित क्षेत्र",               hi:"शरणस्थली क्षेत्र",                note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"alternatedays", en:"Multi-purpose court",                mr:"बहुउद्देशीय कोर्ट",               hi:"बहुउद्देशीय कोर्ट",               note_en:"",                    note_mr:"",                note_hi:"" },
+    { fkey:"weekly",        en:"Club house surrounding",             mr:"क्लबहाऊस परिसर",                  hi:"क्लब हाउस परिसर",                 note_en:"Tuesday",             note_mr:"मंगळवार",         note_hi:"मंगलवार" },
+    { fkey:"weekly",        en:"Society outside gate",               mr:"सोसायटी बाहेरील गेट",             hi:"सोसायटी बाहरी गेट",               note_en:"Mon & Wed",           note_mr:"सोम व बुध",       note_hi:"सोम व बुध" },
+    { fkey:"weekly",        en:"Emergency exit stair",               mr:"आपत्कालीन बाहेर पडण्याचा जिना",  hi:"आपातकालीन निकास सीढ़ी",          note_en:"Mon & Wed",           note_mr:"सोम व बुध",       note_hi:"सोम व बुध" },
+    { fkey:"biweekly",      en:"Spider net cleaning",                mr:"कोळ्याचे जाळे साफ करणे",         hi:"मकड़ी का जाल सफाई",               note_en:"Every 15 days",       note_mr:"दर १५ दिवसांनी", note_hi:"हर 15 दिन में" },
+    { fkey:"biweekly",      en:"Meter room cleaning",                mr:"मीटर रूम साफसफाई",               hi:"मीटर रूम सफाई",                   note_en:"Every 15 days",       note_mr:"दर १५ दिवसांनी", note_hi:"हर 15 दिन में" },
+    { fkey:"biweekly",      en:"Garden cleaning",                    mr:"बाग साफसफाई",                     hi:"बगीचे की सफाई",                   note_en:"Every 15 days",       note_mr:"दर १५ दिवसांनी", note_hi:"हर 15 दिन में" },
+    { fkey:"monthly",       en:"Gutka spit cleaning",                mr:"गुटखा थुंकी साफसफाई",            hi:"गुटखा थूक सफाई",                  note_en:"1st Thursday",        note_mr:"पहिला गुरुवार",  note_hi:"पहला गुरुवार" },
+    { fkey:"monthly",       en:"Terrace cleaning",                   mr:"टेरेस साफसफाई",                   hi:"छत की सफाई",                      note_en:"1st Friday",          note_mr:"पहिला शुक्रवार", note_hi:"पहला शुक्रवार" },
+  ],
+  sec: [
+    { fkey:"daily",      en:"Tank sump checking",                          mr:"टाकी सम्प तपासणी",                    hi:"टैंक सम्प जांच",                      note_en:"4 times a day",       note_mr:"दिवसातून ४ वेळा",   note_hi:"दिन में 4 बार" },
+    { fkey:"daily",      en:"Tanker entry recheck",                        mr:"टँकर प्रवेश पुनर्तपासणी",            hi:"टैंकर प्रवेश पुनः जांच",              note_en:"",                    note_mr:"",                   note_hi:"" },
+    { fkey:"daily",      en:"Rounding every 1 hour after midnight",        mr:"मध्यरात्रीनंतर दर १ तासाने गस्त",    hi:"आधी रात के बाद हर 1 घंटे में राउंड", note_en:"",                    note_mr:"",                   note_hi:"" },
+    { fkey:"daily",      en:"Midnight entry log",                          mr:"मध्यरात्री प्रवेश नोंद",             hi:"आधी रात प्रवेश लॉग",                  note_en:"",                    note_mr:"",                   note_hi:"" },
+    { fkey:"daily",      en:"No couples / loud discussions after midnight", mr:"मध्यरात्रीनंतर जोडपे/मोठ्याने चर्चा नाही", hi:"आधी रात के बाद जोड़े/शोर नहीं",  note_en:"",                    note_mr:"",                   note_hi:"" },
+    { fkey:"every2days", en:"Diesel check",                                mr:"डिझेल तपासणी",                        hi:"डीजल जांच",                           note_en:"Mon & Wed",           note_mr:"सोम व बुध",          note_hi:"सोम व बुध" },
+    { fkey:"monthly",    en:"Guard training",                              mr:"रक्षक प्रशिक्षण",                     hi:"गार्ड प्रशिक्षण",                     note_en:"1st day of month",    note_mr:"महिन्याचा पहिला दिवस", note_hi:"महीने का पहला दिन" },
+  ]
+};
+
+var FREQ_COLOR = {
+  daily:"fh-daily", alternatedays:"fh-alternatedays",
+  weekly:"fh-weekly", biweekly:"fh-biweekly",
+  monthly:"fh-monthly", every2days:"fh-every2days"
+};
+
+/* ═══════════════════════════════════════════════
+   STATE / STORAGE
+═══════════════════════════════════════════════ */
+function pad(n){ return n<10?'0'+n:''+n; }
+function todayKey(){
+  var d=new Date();
+  return 'bv3_'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+}
+var state={};
+function loadState(){
+  try{
+    Object.keys(localStorage).forEach(function(k){
+      if(k.indexOf('bv3_')===0 && k!==todayKey()) localStorage.removeItem(k);
+    });
+    var s=localStorage.getItem(todayKey());
+    state=s?JSON.parse(s):{};
+  }catch(e){state={};}
+}
+function saveState(){
+  try{localStorage.setItem(todayKey(),JSON.stringify(state));}catch(e){}
+}
+
+/* ═══════════════════════════════════════════════
+   ATTENDANCE
+═══════════════════════════════════════════════ */
+function changeAtt(cat,field,delta){
+  var key=cat+'_'+field;
+  var cur=state[key]!==undefined?state[key]:0;
+  var val=cur+delta;
+  if(val<0) val=0;
+  if(field==='present'){
+    var tot=state[cat+'_total']!==undefined?state[cat+'_total']:0;
+    if(val>tot) val=tot;
+  }
+  state[key]=val;
+  saveState();
+  refreshAtt(cat);
+}
+function refreshAtt(cat){
+  var total  =state[cat+'_total']  !==undefined?state[cat+'_total']  :0;
+  var present=state[cat+'_present']!==undefined?state[cat+'_present']:0;
+  var absent =total-present;
+  document.getElementById(cat+'-total').textContent  =total;
+  document.getElementById(cat+'-present').textContent=present;
+  var bp=document.getElementById(cat+'-badge-present');
+  var ba=document.getElementById(cat+'-badge-absent');
+  bp.textContent=present+' '+(cat==='sec'?t('duty_badge'):t('present_badge'));
+  ba.textContent=absent +' '+t('absent_badge');
+  if(cat==='sec'){
+    var tanker=state['sec_tanker']!==undefined?state['sec_tanker']:0;
+    document.getElementById('sec-tanker').textContent=tanker;
+    var yd=new Date(); yd.setDate(yd.getDate()-1);
+    document.getElementById('tanker-date-label').textContent=
+      yd.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'short',year:'numeric'});
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   TASKS RENDER
+═══════════════════════════════════════════════ */
+function taskText(item){
+  var txt = item[currentLang]||item.en;
+  var note= item['note_'+currentLang]||item.note_en||'';
+  return {txt:txt, note:note};
+}
+function freqLabel(fkey){
+  var map={daily:'freq_daily',alternatedays:'freq_alternatedays',weekly:'freq_weekly',biweekly:'freq_biweekly',monthly:'freq_monthly',every2days:'freq_every2days'};
+  return t(map[fkey]||'freq_daily');
+}
+function renderSection(cat){
+  var items=DATA[cat];
+  var wrap=document.getElementById('tasks-'+cat);
+  wrap.innerHTML='';
+  var groups=[],seen={};
+  items.forEach(function(item){
+    if(!seen[item.fkey]){seen[item.fkey]=true;groups.push(item.fkey);}
+  });
+  groups.forEach(function(fkey){
+    var gi=items.filter(function(i){return i.fkey===fkey;});
+    var fg=document.createElement('div');
+    fg.className='freq-group';
+    var hd=document.createElement('div');
+    hd.className='freq-heading '+(FREQ_COLOR[fkey]||'fh-daily');
+    hd.textContent=freqLabel(fkey);
+    fg.appendChild(hd);
+    gi.forEach(function(item){
+      var idx=items.indexOf(item);
+      var sid=cat+'_t_'+idx;
+      var done=!!state[sid];
+      var tt=taskText(item);
+      var card=document.createElement('div');
+      card.className='task-card'+(done?' done':'');
+      card.onclick=function(){toggleTask(cat,idx);};
+      card.innerHTML=
+        '<div class="chk-box">'+(done?'✓':'')+'</div>'+
+        '<div class="task-info">'+
+          '<div class="task-name">'+tt.txt+'</div>'+
+          (tt.note?'<div class="task-note">📌 '+tt.note+'</div>':'')+
+        '</div>'+
+        (done&&state[sid+'_t']?'<div class="done-time">✓ '+state[sid+'_t']+'</div>':'');
+      fg.appendChild(card);
+    });
+    wrap.appendChild(fg);
+  });
+  var total=items.length;
+  var done=items.filter(function(_,i){return !!state[cat+'_t_'+i];}).length;
+  var pct=total?Math.round(done/total*100):0;
+  document.getElementById('pbar-'+cat).style.width=pct+'%';
+  document.getElementById('pcount-'+cat).textContent=done+' / '+total;
+}
+function toggleTask(cat,idx){
+  var sid=cat+'_t_'+idx;
+  state[sid]=!state[sid];
+  if(state[sid]){var n=new Date();state[sid+'_t']=pad(n.getHours())+':'+pad(n.getMinutes());}
+  else{delete state[sid+'_t'];}
+  saveState();
+  renderSection(cat);
+}
+
+/* ═══════════════════════════════════════════════
+   TABS
+═══════════════════════════════════════════════ */
+function switchTab(cat,btn){
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('section-'+cat).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════
+   PRINT
+═══════════════════════════════════════════════ */
+function printPage(){
+  var now=new Date();
+  var ds=now.toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  var ts=pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds());
+  document.getElementById('printDateTime').textContent=ds+' | '+ts;
+  document.querySelectorAll('.section').forEach(function(s){s.classList.add('active');});
+  window.print();
+  setTimeout(function(){
+    document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
+    var a=document.querySelector('.tab-btn.active');
+    var c=a&&a.textContent.indexOf('House')>=0?'hk':'sec';
+    // fallback for translated tab names
+    document.getElementById('section-'+c).classList.add('active');
+  },500);
+}
+
+/* ═══════════════════════════════════════════════
+   EXCEL EXPORT
+═══════════════════════════════════════════════ */
+function exportExcel(){
+  var now=new Date();
+  var dateStr=now.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+  var wb=XLSX.utils.book_new();
+
+  // ── Sheet 1: Summary ──
+  var summaryRows=[
+    ['Bloomville Co-Op. Housing Society'],
+    ['Supervisor Daily Checklist Report'],
+    ['Date:', now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})],
+    ['Time:', pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())],
+    ['Language:', currentLang==='en'?'English':currentLang==='mr'?'Marathi':'Hindi'],
+    [],
+    ['--- HOUSEKEEPING ATTENDANCE ---'],
+    ['Total Staff Strength', state['hk_total']||0],
+    ['Present Today',        state['hk_present']||0],
+    ['Absent Today',         (state['hk_total']||0)-(state['hk_present']||0)],
+    [],
+    ['--- SECURITY ATTENDANCE ---'],
+    ['Total Guards Deployed', state['sec_total']||0],
+    ['On Duty Today',         state['sec_present']||0],
+    ['Absent Today',          (state['sec_total']||0)-(state['sec_present']||0)],
+    ['Tankers Supplied (Yesterday)', state['sec_tanker']||0],
+  ];
+  var wsSum=XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSum['!cols']=[{wch:32},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsSum,'Summary');
+
+  // ── Sheet 2: Housekeeping Tasks ──
+  var hkRows=[['#','Task (English)','Task ('+( currentLang==='mr'?'मराठी':currentLang==='hi'?'हिंदी':'English')+')','Frequency','Status','Time Completed','Note']];
+  DATA.hk.forEach(function(item,idx){
+    var sid='hk_t_'+idx;
+    var tt=taskText(item);
+    hkRows.push([
+      idx+1,
+      item.en,
+      tt.txt,
+      freqLabel(item.fkey),
+      state[sid]?'✅ Done':'⬜ Pending',
+      state[sid+'_t']||'',
+      tt.note
+    ]);
+  });
+  var wsHk=XLSX.utils.aoa_to_sheet(hkRows);
+  wsHk['!cols']=[{wch:4},{wch:34},{wch:34},{wch:18},{wch:12},{wch:16},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wsHk,'Housekeeping');
+
+  // ── Sheet 3: Security Tasks ──
+  var secRows=[['#','Task (English)','Task ('+( currentLang==='mr'?'मराठी':currentLang==='hi'?'हिंदी':'English')+')','Frequency','Status','Time Completed','Note']];
+  DATA.sec.forEach(function(item,idx){
+    var sid='sec_t_'+idx;
+    var tt=taskText(item);
+    secRows.push([
+      idx+1,
+      item.en,
+      tt.txt,
+      freqLabel(item.fkey),
+      state[sid]?'✅ Done':'⬜ Pending',
+      state[sid+'_t']||'',
+      tt.note
+    ]);
+  });
+  var wsSec=XLSX.utils.aoa_to_sheet(secRows);
+  wsSec['!cols']=[{wch:4},{wch:40},{wch:40},{wch:18},{wch:12},{wch:16},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,wsSec,'Security');
+
+  var fileName='Bloomville_Checklist_'+dateStr+'.xlsx';
+  XLSX.writeFile(wb,fileName);
+}
+
+/* ═══════════════════════════════════════════════
+   GOOGLE DRIVE SAVE (via Google Apps Script)
+═══════════════════════════════════════════════ */
+var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwQoW-V1istq8efTSQp_L4fS9K5lvhah6F0MDErO2dkrCS1K8cp-tx4PscmMZwpCDZl/exec';
+
+function showDriveStatus(msg, cls){
+  var el = document.getElementById('driveStatus');
+  el.innerHTML = '<span class="'+cls+'">'+msg+'</span>';
+  el.className = 'show';
+  if(cls === 'ds-ok') setTimeout(function(){ el.className=''; }, 6000);
+}
+
+function saveToDrive(){
+  showDriveStatus(t('drive_uploading'), 'ds-loading');
+
+  // Build Excel workbook
+  var now = new Date();
+  var dateStr = now.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+  var fileName = 'Bloomville_Checklist_' + dateStr + '.xlsx';
+
+  var wb = XLSX.utils.book_new();
+
+  // Summary sheet
+  var summaryRows = [
+    ['Bloomville Co-Op. Housing Society'],
+    ['Supervisor Checklist Report'],
+    ['Date', now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})],
+    ['Time', pad(now.getHours())+':'+pad(now.getMinutes())+':'+pad(now.getSeconds())],
+    [],
+    ['--- HOUSEKEEPING ATTENDANCE ---'],
+    ['Total Staff Strength',  state['hk_total']   || 0],
+    ['Present Today',         state['hk_present'] || 0],
+    ['Absent Today',         (state['hk_total']||0) - (state['hk_present']||0)],
+    [],
+    ['--- SECURITY ATTENDANCE ---'],
+    ['Total Guards Deployed', state['sec_total']   || 0],
+    ['On Duty Today',         state['sec_present'] || 0],
+    ['Absent Today',         (state['sec_total']||0) - (state['sec_present']||0)],
+    ['Tankers Supplied (Yesterday)', state['sec_tanker'] || 0],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary');
+
+  // Housekeeping sheet
+  var hkRows = [['#','Task','Frequency','Status','Time Completed','Note']];
+  DATA.hk.forEach(function(item,idx){
+    var sid = 'hk_t_'+idx;
+    var tt  = taskText(item);
+    hkRows.push([idx+1, tt.txt, freqLabel(item.fkey), state[sid]?'Done':'Pending', state[sid+'_t']||'', tt.note]);
+  });
+  var wsHk = XLSX.utils.aoa_to_sheet(hkRows);
+  wsHk['!cols'] = [{wch:4},{wch:38},{wch:18},{wch:12},{wch:16},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, wsHk, 'Housekeeping');
+
+  // Security sheet
+  var secRows = [['#','Task','Frequency','Status','Time Completed','Note']];
+  DATA.sec.forEach(function(item,idx){
+    var sid = 'sec_t_'+idx;
+    var tt  = taskText(item);
+    secRows.push([idx+1, tt.txt, freqLabel(item.fkey), state[sid]?'Done':'Pending', state[sid+'_t']||'', tt.note]);
+  });
+  var wsSec = XLSX.utils.aoa_to_sheet(secRows);
+  wsSec['!cols'] = [{wch:4},{wch:44},{wch:18},{wch:12},{wch:16},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, wsSec, 'Security');
+
+  // Convert to base64 and send to Apps Script
+  var wbout  = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+
+  var params = new URLSearchParams();
+  params.append('file', wbout);
+  params.append('name', fileName);
+
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    body: params
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.status === 'ok'){
+      showDriveStatus(t('drive_ok'), 'ds-ok');
+    } else {
+      showDriveStatus(t('drive_err'), 'ds-err');
+    }
+  })
+  .catch(function(err){
+    console.error(err);
+    showDriveStatus(t('drive_err'), 'ds-err');
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════ */
+function resetAll(){
+  if(confirm(t('confirm_reset'))){
+    state={};
+    saveState();
+    renderSection('hk');
+    renderSection('sec');
+    refreshAtt('hk');
+    refreshAtt('sec');
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   CLOCK
+═══════════════════════════════════════════════ */
+function updateClock(){
+  var n=new Date();
+  document.getElementById('liveClock').textContent=pad(n.getHours())+':'+pad(n.getMinutes())+':'+pad(n.getSeconds());
+  document.getElementById('liveDate').textContent=n.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+loadState();
+renderSection('hk');
+renderSection('sec');
+refreshAtt('hk');
+refreshAtt('sec');
+updateClock();
+setInterval(updateClock,1000);
+</script>
+</body>
+</html>
